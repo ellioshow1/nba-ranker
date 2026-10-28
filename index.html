@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NBA Ranker</title>
+  <meta name="description" content="Rank every active NBA player head to head, then see how your list compares with a stats robot.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">🏀 <span>NBA Ranker</span></div>
+    <nav id="tabs" hidden>
+      <button data-view="setup">Players</button>
+      <button data-view="play">Matchups</button>
+      <button data-view="rank">Ranking</button>
+      <button data-view="compare">Vs robot</button>
+      <button data-view="share">Share</button>
+    </nav>
+  </header>
+
+  <div id="toast" role="status" hidden></div>
+
+  <main>
+    <section id="view-loading" class="view narrow">
+      <p class="lede">Loading players…</p>
+    </section>
+
+    <!-- Setup: who's in the pool -->
+    <section id="view-setup" class="view" hidden>
+      <div class="head-row">
+        <div>
+          <h1 id="setup-title">Rank every NBA player.</h1>
+          <p class="lede" id="setup-lede">Pick who's in, then choose between two players at a time. Every pick moves their Elo ratings, so everyone always has an exact place in your ranking. Then see how your list stacks up against a stats robot.</p>
+        </div>
+      </div>
+
+      <div class="presets" id="presets"></div>
+
+      <div class="card filters">
+        <div class="filter-grid">
+          <label class="field">Judge players on
+            <select id="f-basis"></select>
+          </label>
+          <label class="field">Minutes played (season total): <b id="f-min-val"></b>
+            <input id="f-min" type="range" min="0" max="2500" step="50">
+          </label>
+          <label class="field">Games played: <b id="f-games-val"></b>
+            <input id="f-games" type="range" min="0" max="82" step="1">
+          </label>
+          <label class="field">Minutes per game: <b id="f-mpg-val"></b>
+            <input id="f-mpg" type="range" min="0" max="36" step="1">
+          </label>
+          <div class="field">Role
+            <div class="seg" id="f-role">
+              <button data-v="all">Everyone</button><button data-v="starters">Starters</button><button data-v="bench">Bench</button>
+            </div>
+            <span class="hint">Starter = started at least half the games they played.</span>
+          </div>
+          <div class="field">Position
+            <div class="seg multi" id="f-pos">
+              <button data-v="G">Guards</button><button data-v="F">Forwards</button><button data-v="C">Centers</button>
+            </div>
+          </div>
+          <div class="field">Conference
+            <div class="seg" id="f-conf">
+              <button data-v="all">Both</button><button data-v="East">East</button><button data-v="West">West</button>
+            </div>
+          </div>
+          <label class="field">Only the robot's top: <b id="f-top-val"></b>
+            <input id="f-top" type="range" min="0" max="300" step="10">
+          </label>
+        </div>
+        <div class="checks">
+          <label><input type="checkbox" id="f-new"> <span id="f-new-label">Include rookies and players who missed last season</span></label>
+          <label><input type="checkbox" id="f-out"> Leave out players currently listed as out injured</label>
+        </div>
+        <details class="teams">
+          <summary>Teams <span class="hint" id="f-teams-sum">All 30</span></summary>
+          <div class="team-chips" id="f-teams"></div>
+        </details>
+      </div>
+
+      <div class="card pool-card">
+        <div class="pool-head">
+          <div>
+            <h2><span id="pool-count">0</span> players in</h2>
+            <p class="hint" id="pool-est"></p>
+          </div>
+          <div class="row wrap">
+            <button id="start-btn" class="primary big">Start ranking</button>
+          </div>
+        </div>
+        <div class="row wrap">
+          <input id="pool-search" type="search" placeholder="Find any player to add or remove…" autocomplete="off">
+        </div>
+        <ul id="pool-results" class="plist compact"></ul>
+        <details>
+          <summary>See who's in</summary>
+          <ul id="pool-list" class="plist compact"></ul>
+        </details>
+      </div>
+
+      <details class="card about">
+        <summary><h2>How the robot ranks players</h2></summary>
+        <div id="robot-about"></div>
+      </details>
+      <p class="hint" id="data-note"></p>
+    </section>
+
+    <!-- Matchups -->
+    <section id="view-play" class="view" hidden>
+      <div class="progress">
+        <div class="progress-label"><b id="lvl-label"></b><span id="lvl-detail"></span></div>
+        <div class="bar"><div id="lvl-bar"></div></div>
+      </div>
+      <p class="question">Who's the better player <i>right now</i>?</p>
+      <div class="matchup" id="matchup">
+        <article class="side" data-side="a"></article>
+        <div class="vs">VS</div>
+        <article class="side" data-side="b"></article>
+      </div>
+      <div class="controls">
+        <button class="ghost" id="tie-btn">Too close to call <kbd>↓</kbd></button>
+        <button class="ghost" id="skip-btn">Skip <kbd>S</kbd></button>
+        <button class="ghost" id="undo-btn">Undo <kbd>Z</kbd></button>
+        <label class="toggle"><input type="checkbox" id="show-stats"> Show stats</label>
+      </div>
+      <p class="hint center">Keys: <kbd>←</kbd> left, <kbd>→</kbd> right. Stop whenever you like; your ranking is always complete and gets sharper the more you pick.</p>
+    </section>
+
+    <!-- My ranking -->
+    <section id="view-rank" class="view" hidden>
+      <div class="head-row">
+        <div>
+          <h1>My ranking</h1>
+          <p class="lede" id="rank-summary"></p>
+        </div>
+      </div>
+      <div class="row wrap">
+        <input id="rank-search" type="search" placeholder="Find a player…">
+        <div class="seg" id="rank-pos">
+          <button data-v="">All</button><button data-v="G">G</button><button data-v="F">F</button><button data-v="C">C</button>
+        </div>
+      </div>
+      <ol id="rank-list" class="plist ranked"></ol>
+    </section>
+
+    <!-- You vs the robot -->
+    <section id="view-compare" class="view" hidden>
+      <h1>You vs the robot</h1>
+      <div class="stat-tiles" id="cmp-tiles"></div>
+      <div class="cmp-cols">
+        <div class="card">
+          <h2>You rate higher</h2>
+          <ol id="cmp-you" class="plist compact diff"></ol>
+        </div>
+        <div class="card">
+          <h2>The robot rates higher</h2>
+          <ol id="cmp-robot" class="plist compact diff"></ol>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Every player, your rank vs the robot's</h2>
+        <p class="hint">Dots on the diagonal are players you both agree on. Above the line, you rank them higher than the robot does. Tap a dot for the name.</p>
+        <div id="scatter"></div>
+      </div>
+      <div class="card">
+        <h2>Top 25 side by side</h2>
+        <div class="side-by-side" id="cmp-top"></div>
+      </div>
+    </section>
+
+    <!-- Share -->
+    <section id="view-share" class="view narrow" hidden>
+      <h1>Share your ranking</h1>
+      <label class="field">Your name (shown on the image and link)
+        <input id="share-name" placeholder="e.g. Elliot" maxlength="30">
+      </label>
+      <div class="card">
+        <h2>Link</h2>
+        <p class="hint">Opens your full ranking, with how it compares to the robot (and to theirs, if they've made one).</p>
+        <div class="row wrap">
+          <button id="share-link" class="primary">Share link</button>
+          <button id="copy-link" class="ghost">Copy link</button>
+          <button id="copy-text" class="ghost">Copy top 25 as text</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Image</h2>
+        <div class="seg" id="img-n">
+          <button data-v="10">Top 10</button><button data-v="25">Top 25</button><button data-v="50">Top 50</button>
+        </div>
+        <div class="img-wrap"><img id="img-preview" alt="Preview of your ranking image"></div>
+        <div class="row wrap">
+          <button id="share-img" class="primary">Share image</button>
+          <button id="dl-img" class="ghost">Download</button>
+        </div>
+      </div>
+      <div class="card danger">
+        <h2>Start over</h2>
+        <p>Throws away every pick. Your player filters stay.</p>
+        <button id="reset" class="danger-btn">Reset my ranking</button>
+      </div>
+    </section>
+
+    <!-- Someone else's shared ranking -->
+    <section id="view-shared" class="view" hidden>
+      <div class="head-row">
+        <div>
+          <h1 id="shared-title"></h1>
+          <p class="lede" id="shared-lede"></p>
+        </div>
+        <div class="row wrap">
+          <button id="shared-mine" class="primary">Make my own</button>
+        </div>
+      </div>
+      <div class="stat-tiles" id="shared-tiles"></div>
+      <ol id="shared-list" class="plist ranked"></ol>
+    </section>
+  </main>
+
+  <dialog id="player-dlg"></dialog>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

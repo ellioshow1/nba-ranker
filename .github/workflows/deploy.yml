@@ -1,0 +1,39 @@
+name: Refresh data and deploy
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 9 * * *'   # daily, after the night's games are final in the US
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # Fresh rosters, injuries and stats for the deployed site. If ESPN is down,
+      # the step fails softly and the copy committed in data/ is deployed instead.
+      - name: Refresh player data
+        continue-on-error: true
+        run: python3 scripts/build_data.py
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
